@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"time"
+	"strings"
 	bolt "github.com/boltdb/bolt"
 	fiber "github.com/gofiber/fiber/v2"
 	fiber_cookie "github.com/gofiber/fiber/v2/middleware/encryptcookie"
@@ -12,16 +13,15 @@ import (
 	utils "github.com/0187773933/GetSetServer/v1/utils"
 )
 
+var HEADER_API_KEY string
+var HEADER_SIGNATURE string
+var HEADER_TIMESTAMP string
+
 type Server struct {
 	FiberApp *fiber.App `json:"fiber_app"`
 	Config types.ConfigFile `json:"config"`
 	DB *bolt.DB `json:"_"`
 }
-
-var HEADER_API_KEY string
-var HEADER_UUID_KEY string
-var HEADER_CLIENT_ID string
-var HEADER_SEQUENCE_ID string
 
 var PublicLimiter = rate_limiter.New(rate_limiter.Config{
 	Max:        30, // set a different rate limit for this route
@@ -42,16 +42,28 @@ var PublicLimiter = rate_limiter.New(rate_limiter.Config{
 
 func New( config types.ConfigFile , db *bolt.DB ) ( server Server ) {
 
-	server.FiberApp = fiber.New()
+	server.FiberApp = fiber.New( fiber.Config{
+		Prefork:       false ,
+		CaseSensitive: true ,
+		StrictRouting: true ,
+		AppName:      "GetSetServer" ,
+	})
 	server.Config = config
 	server.DB = db
 
-	// HEADER_API_KEY = fmt.Sprintf( "%s-API-KEY" , server.Config.ServerHeaderPrefix )
-	// HEADER_UUID_KEY = fmt.Sprintf( "%s-UUID" , server.Config.ServerHeaderPrefix )
-	// HEADER_CLIENT_ID = fmt.Sprintf( "%s-CLIENT-ID" , server.Config.ServerHeaderPrefix )
-	// HEADER_SEQUENCE_ID = fmt.Sprintf( "%s-SEQUENCE-ID" , server.Config.ServerHeaderPrefix )
+	HEADER_API_KEY = fmt.Sprintf( "%s-API-KEY" , server.Config.ServerHeaderPrefix )
+	HEADER_SIGNATURE = fmt.Sprintf( "%s-SIGNATURE" , server.Config.ServerHeaderPrefix )
+	HEADER_TIMESTAMP = fmt.Sprintf( "%s-TIMESTAMP" , server.Config.ServerHeaderPrefix )
 
-	server.FiberApp.Use( server.LogRequest )
+	ALLOW_HEADERS := []string{
+		"Origin" ,
+		"Content-Type" ,
+		"Accept" ,
+		HEADER_API_KEY ,
+		HEADER_SIGNATURE ,
+		HEADER_TIMESTAMP ,
+	}
+
 	// server.FiberApp.Use( favicon.New( favicon.Config{
 	// 	File: "./v1/server/cdn/favicon.ico" ,
 	// }))
@@ -66,10 +78,11 @@ func New( config types.ConfigFile , db *bolt.DB ) ( server Server ) {
 	fmt.Println( "Using Origins:" , allow_origins_string )
 	server.FiberApp.Use( fiber_cors.New( fiber_cors.Config{
 		AllowOrigins: allow_origins_string ,
-		AllowHeaders:  fmt.Sprintf( "Origin, Content-Type, Accept, %s," , HEADER_API_KEY ) ,
-		// AllowHeaders:  fmt.Sprintf( "Origin, Content-Type, Accept, %s, %s, %s, %s" , HEADER_API_KEY , HEADER_UUID_KEY , HEADER_CLIENT_ID , HEADER_SEQUENCE_ID ) ,
+		AllowHeaders:  strings.Join( ALLOW_HEADERS , ", " ) ,
 		AllowCredentials: true ,
 	}))
+
+	server.FiberApp.Use( server.LogRequest )
 
 	server.FiberApp.Use( server.ValidateAPIKey() )
 
@@ -94,6 +107,9 @@ func ( s *Server ) SetupRoutes() {
 	// s.FiberApp.Post( "/import" , PublicLimiter , s.ImportUser )
 	// s.FiberApp.Get( "/changed" , PublicLimiter , s.GetChangedUsersList )
 	// s.FiberApp.Get( "/download" , PublicLimiter , s.DownloadUser )
+	s.FiberApp.Get("/hello", func(c *fiber.Ctx) error {
+		return c.SendString("✅ HMAC verified!")
+	})
 }
 
 func ( s *Server ) Start() {
