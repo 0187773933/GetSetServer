@@ -9,6 +9,11 @@ import (
 )
 
 func ( s *Server ) Set( context *fiber.Ctx ) ( error ) {
+	if !s.ValidateContext( context ) {
+		return context.Status( fiber.StatusUnauthorized ).JSON( fiber.Map{
+			"error": "invalid or missing API key" ,
+		})
+	}
 	key := context.Params( "key" )
 	value := context.Params( "value" )
 	if key != "" && value != "" {
