@@ -14,8 +14,8 @@ import (
 )
 
 var HEADER_API_KEY string
-var HEADER_SIGNATURE string
-var HEADER_TIMESTAMP string
+// var HEADER_SIGNATURE string
+// var HEADER_TIMESTAMP string
 
 type Server struct {
 	FiberApp *fiber.App `json:"fiber_app"`
@@ -52,16 +52,16 @@ func New( config types.ConfigFile , db *bolt.DB ) ( server Server ) {
 	server.DB = db
 
 	HEADER_API_KEY = fmt.Sprintf( "%s-API-KEY" , server.Config.ServerHeaderPrefix )
-	HEADER_SIGNATURE = fmt.Sprintf( "%s-SIGNATURE" , server.Config.ServerHeaderPrefix )
-	HEADER_TIMESTAMP = fmt.Sprintf( "%s-TIMESTAMP" , server.Config.ServerHeaderPrefix )
+	// HEADER_SIGNATURE = fmt.Sprintf( "%s-SIGNATURE" , server.Config.ServerHeaderPrefix )
+	// HEADER_TIMESTAMP = fmt.Sprintf( "%s-TIMESTAMP" , server.Config.ServerHeaderPrefix )
 
 	ALLOW_HEADERS := []string{
 		"Origin" ,
 		"Content-Type" ,
 		"Accept" ,
 		HEADER_API_KEY ,
-		HEADER_SIGNATURE ,
-		HEADER_TIMESTAMP ,
+		// HEADER_SIGNATURE ,
+		// HEADER_TIMESTAMP ,
 	}
 
 	// server.FiberApp.Use( favicon.New( favicon.Config{
@@ -84,7 +84,7 @@ func New( config types.ConfigFile , db *bolt.DB ) ( server Server ) {
 
 	server.FiberApp.Use( server.LogRequest )
 
-	server.FiberApp.Use( server.ValidateAPIKey() )
+	// server.FiberApp.Use( server.ValidateAPIKey() )
 
 	server.SetupRoutes()
 	// server.FiberApp.Get( "/*" , func( context *fiber.Ctx ) ( error ) { return context.Redirect( "/" ) } )
@@ -107,9 +107,17 @@ func ( s *Server ) SetupRoutes() {
 	// s.FiberApp.Post( "/import" , PublicLimiter , s.ImportUser )
 	// s.FiberApp.Get( "/changed" , PublicLimiter , s.GetChangedUsersList )
 	// s.FiberApp.Get( "/download" , PublicLimiter , s.DownloadUser )
-	s.FiberApp.Get("/hello", func(c *fiber.Ctx) error {
-		return c.SendString("✅ HMAC verified!")
-	})
+	// s.FiberApp.Get( "/hello" , func(c *fiber.Ctx) error {
+	// 	return c.SendString("✅ HMAC verified!")
+	// })
+
+	s.FiberApp.Get( "/get/:key" , PublicLimiter , s.Get )
+	s.FiberApp.Post( "/set/:key" , PublicLimiter , s.Set )
+
+
+	s.FiberApp.Get( "/:api_key/get/:key" , PublicLimiter , s.Get )
+	s.FiberApp.Get( "/:api_key/set" , PublicLimiter , s.Set )
+	s.FiberApp.Get( "/:api_key/set/:key/:value" , PublicLimiter , s.Set )
 }
 
 func ( s *Server ) Start() {
