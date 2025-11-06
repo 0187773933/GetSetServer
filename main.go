@@ -28,6 +28,7 @@ func SetupCloseHandler() {
 }
 
 func main() {
+	// utils.GenerateNewKeys()
 	SetupCloseHandler()
 	config_file_path , _ := filepath.Abs( os.Args[ 1 ] )
 	config := utils.ParseConfig( config_file_path )

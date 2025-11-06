@@ -24,7 +24,7 @@ type Server struct {
 }
 
 var PublicLimiter = rate_limiter.New(rate_limiter.Config{
-	Max:        30, // set a different rate limit for this route
+	Max:        3 ,
 	Expiration: 1 * time.Second ,
 	// your remaining configurations...
 	KeyGenerator: func(c *fiber.Ctx) string {
@@ -75,7 +75,7 @@ func New( config types.ConfigFile , db *bolt.DB ) ( server Server ) {
 	}))
 
 	allow_origins_string := fmt.Sprintf( "%s, %s" , server.Config.ServerBaseUrl , server.Config.ServerLiveUrl )
-	fmt.Println( "Using Origins:" , allow_origins_string )
+	// fmt.Println( "Using Origins:" , allow_origins_string )
 	server.FiberApp.Use( fiber_cors.New( fiber_cors.Config{
 		AllowOrigins: allow_origins_string ,
 		AllowHeaders:  strings.Join( ALLOW_HEADERS , ", " ) ,
@@ -104,16 +104,8 @@ func ( s *Server ) LogRequest( context *fiber.Ctx ) ( error ) {
 }
 
 func ( s *Server ) SetupRoutes() {
-	// s.FiberApp.Post( "/import" , PublicLimiter , s.ImportUser )
-	// s.FiberApp.Get( "/changed" , PublicLimiter , s.GetChangedUsersList )
-	// s.FiberApp.Get( "/download" , PublicLimiter , s.DownloadUser )
-	// s.FiberApp.Get( "/hello" , func(c *fiber.Ctx) error {
-	// 	return c.SendString("✅ HMAC verified!")
-	// })
-
 	s.FiberApp.Get( "/get/:key" , PublicLimiter , s.Get )
 	s.FiberApp.Post( "/set/:key" , PublicLimiter , s.Set )
-
 
 	s.FiberApp.Get( "/:api_key/get/:key" , PublicLimiter , s.Get )
 	s.FiberApp.Get( "/:api_key/set" , PublicLimiter , s.Set )
@@ -121,12 +113,11 @@ func ( s *Server ) SetupRoutes() {
 }
 
 func ( s *Server ) Start() {
-	fmt.Println( "\n" )
 	local_ips := utils.GetLocalIPAddresses()
 	for _ , x_ip := range local_ips {
 		fmt.Printf( "Listening on http://%s:%s\n" , x_ip , s.Config.ServerPort )
 	}
-	fmt.Println( "Listening on http://localhost:%s\n" , s.Config.ServerPort )
+	fmt.Printf( "Listening on http://localhost:%s\n" , s.Config.ServerPort )
 	fmt.Printf( "Admin Login @ http://localhost:%s/admin/login\n" , s.Config.ServerPort )
 	fmt.Printf( "Admin Login @ %s/admin/login\n" , s.Config.ServerLiveUrl )
 	fmt.Printf( "Admin Username === %s\n" , s.Config.AdminUsername )
